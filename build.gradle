@@ -1,0 +1,51 @@
+import org.gradle.internal.jvm.Jvm
+
+plugins {
+    id 'cpp-library'
+    id 'java'
+    id 'application'
+}
+
+group = 'org.example'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
+
+library {
+    linkage = [Linkage.SHARED]
+    baseName = 'greeter'
+}
+
+application {
+    mainClass = 'net.bdew.test.Main'
+    applicationDefaultJvmArgs = ["-Djava.library.path=${layout.buildDirectory.dir('lib/main/debug').get().asFile}"]
+}
+
+dependencies {
+
+}
+
+tasks.named('run').configure {
+    dependsOn(tasks.named('assembleDebug'))
+}
+
+tasks.withType(CppCompile).configureEach { cppCompile ->
+    def javaHome = Jvm.current().javaHome
+    compilerArgs.addAll([
+            "-I${javaHome}/include",
+            "-I${javaHome}/include/win32"
+    ])
+    cppCompile.dependsOn(tasks.withType(JavaCompile))
+}
+
+tasks.withType(JavaCompile).configureEach {
+    // Specifies where the generated .h files should be placed
+    options.headerOutputDirectory = file("src/main/headers")
+}
