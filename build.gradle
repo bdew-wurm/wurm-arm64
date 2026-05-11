@@ -1,4 +1,5 @@
 import org.gradle.internal.jvm.Jvm
+import org.gradle.nativeplatform.platform.internal.DefaultNativePlatform
 
 plugins {
     id 'cpp-library'
@@ -38,14 +39,16 @@ tasks.named('run').configure {
 
 tasks.withType(CppCompile).configureEach { cppCompile ->
     def javaHome = Jvm.current().javaHome
+    def os = DefaultNativePlatform.currentOperatingSystem
+    def platformInclude = os.isWindows() ? "win32" : os.isMacOsX() ? "darwin" : "linux"
     compilerArgs.addAll([
             "-I${javaHome}/include",
-            "-I${javaHome}/include/win32"
+            "-I${javaHome}/include/${platformInclude}"
     ])
-    cppCompile.dependsOn(tasks.withType(JavaCompile))
+    cppCompile.dependsOn(tasks.compileJava)
 }
 
-tasks.withType(JavaCompile).configureEach {
+tasks.named("compileJava").configure {
     // Specifies where the generated .h files should be placed
     options.headerOutputDirectory = file("src/main/headers")
 }
