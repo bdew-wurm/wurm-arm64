@@ -64,9 +64,10 @@ tasks.register('cloneSteamworksSdk') {
     }
 }
 
+def os = DefaultNativePlatform.currentOperatingSystem
+
 tasks.withType(CppCompile).configureEach { cppCompile ->
     def javaHome = Jvm.current().javaHome
-    def os = DefaultNativePlatform.currentOperatingSystem
     def platformInclude = os.isWindows() ? "win32" : os.isMacOsX() ? "darwin" : "linux"
     compilerArgs.addAll([
             "-I${javaHome}/include",
@@ -76,6 +77,20 @@ tasks.withType(CppCompile).configureEach { cppCompile ->
     ])
     cppCompile.dependsOn(tasks.compileJava)
     cppCompile.dependsOn(tasks.named('cloneSteamworksSdk'))
+}
+
+def isArm64 = DefaultNativePlatform.currentArchitecture.isArm64()
+def steamLibDir = os.isWindows() ? 'redistributable_bin/win64' : os.isMacOsX() ? 'redistributable_bin/osx' : isArm64 ? 'redistributable_bin/linuxarm64' : 'redistributable_bin/linux64'
+def steamLibName = os.isWindows() ? 'steam_api64' : 'steam_api'
+
+tasks.withType(LinkSharedLibrary).configureEach { link ->
+    def libDir = new File(steamworksSdkDir.get().asFile, steamLibDir)
+    linkerArgs.addAll(["-L${libDir}", "-l${steamLibName}"])
+    if (!os.isWindows()) {
+        linkerArgs.add("-Wl,-rpath,${libDir}")
+        linkerArgs.add("-Wl,-rpath,\$ORIGIN")
+    }
+    link.dependsOn(tasks.named('cloneSteamworksSdk'))
 }
 
 tasks.named("compileJava").configure {
