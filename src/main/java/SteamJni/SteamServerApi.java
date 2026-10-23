@@ -1,17 +1,6 @@
-package com.wurmonline.server.steam;
+package SteamJni;
 
-public class SteamServerApi {
-    private final SteamHandler steamHandler;
-
-    /**
-     * Creates the JNI bridge and records the handler that receives Steam callbacks.
-     * 
-     * @param steamHandler Server-side handler that processes Steam callbacks.
-     */
-    public SteamServerApi(final SteamHandler steamHandler) {
-        this.steamHandler = steamHandler;
-    }
-
+public abstract class SteamServerApi {
     /**
      * Creates the native callback object used to forward Steam server events to
      * this instance.
@@ -29,8 +18,6 @@ public class SteamServerApi {
 
     /**
      * Initializes the Steam game server.
-     * The ports, server mode, and version are supplied by
-     * {@code SteamHandler.createServer}.
      * 
      * @param serverIp      IP address used for the server; the current caller
      *                      supplies zero.
@@ -134,8 +121,6 @@ public class SteamServerApi {
     /**
      * Begins Steam authentication for the given player using their ticket and its
      * supplied length.
-     * The result is interpreted by {@code SteamHandler} as the authentication
-     * result code.
      * 
      * @param steamId              Player's Steam ID as a string.
      * @param authenticationTicket Authentication ticket bytes received from the
@@ -153,24 +138,17 @@ public class SteamServerApi {
      */
     public native void EndAuthSession(final String steamId);
 
-    /**
-     * Handles Steam's server-connected callback by configuring the server's listing
-     * details.
-     */
-    public void OnSteamServersConnected() {
-        this.steamHandler.onSteamConnected();
-    }
+    /** Called when the game server has connected to Steam. */
+    public abstract void OnSteamServersConnected();
 
     /**
-     * Forwards Steam's ticket-validation result for a player to the server handler.
+     * Called with Steam's ticket-validation result for a player.
      * 
      * @param steamId       Player's Steam ID as a string.
      * @param authenticated Whether Steam accepted the player's authentication
      *                      ticket.
      */
-    public void OnValidateAuthTicketResponse(final String steamId, final boolean authenticated) {
-        this.steamHandler.onValidateAuthTicketResponse(steamId, authenticated);
-    }
+    public abstract void OnValidateAuthTicketResponse(final String steamId, final boolean authenticated);
 
     static {
         System.loadLibrary("SteamServerJni");

@@ -1,7 +1,6 @@
 package net.bdew.test;
 
-import com.wurmonline.server.steam.SteamHandler;
-import com.wurmonline.server.steam.SteamServerApi;
+import SteamJni.SteamServerApi;
 
 public class TestSteamAPI {
     private static final String MOD_DIR = "wurmunlimitedserver";
@@ -23,39 +22,40 @@ public class TestSteamAPI {
     private static final long EXTRA_RUN_MS = 3_000;
     private static final long POLL_INTERVAL_MS = 50;
 
-    private static class TestHandler extends SteamHandler {
-        volatile SteamServerApi api;
+    private static class TestSteamServerApi extends SteamServerApi {
         volatile boolean connected;
+        volatile boolean unexpectedAuthResponse;
 
         @Override
-        public void onSteamConnected() {
-            api.SetPasswordProtected(false);
-            api.setMaxPlayerCount(MAX_PLAYERS);
-            api.SetServerName(SERVER_NAME);
-            api.SetBotCount(0);
-            api.SetMapName(MAP_NAME);
+        public void OnSteamServersConnected() {
+            SetPasswordProtected(false);
+            setMaxPlayerCount(MAX_PLAYERS);
+            SetServerName(SERVER_NAME);
+            SetBotCount(0);
+            SetMapName(MAP_NAME);
             System.out.println("Server connected to steam");
             connected = true;
         }
 
         @Override
-        public void onValidateAuthTicketResponse(final String steamIdString, final boolean wasSucces) {
-            System.out.println("Unexpected auth response for " + steamIdString + ": " + wasSucces);
+        public void OnValidateAuthTicketResponse(final String steamId, final boolean authenticated) {
+            System.out.println("Unexpected auth response for " + steamId + ": " + authenticated);
+            unexpectedAuthResponse = true;
         }
     }
 
     public static void main(final String[] args) throws InterruptedException {
-        final TestHandler handler = new TestHandler();
-        final SteamServerApi api = new SteamServerApi(handler);
-        handler.api = api;
+        final TestSteamServerApi api = new TestSteamServerApi();
 
         api.CreateCallback();
 
         boolean serverStarted = false;
+        boolean failed = false;
         try {
             if (!api.SteamGameServer_Init(SERVER_IP, STEAM_PORT, GAME_PORT, QUERY_PORT, SERVER_MODE_AUTHENTICATION_AND_SECURE, VERSION)) {
                 System.out.println("Could not start server");
-                return;
+                api.DeleteCallback();
+                System.exit(1);
             }
             api.SetModDir(MOD_DIR);
             api.SetDedicatedServer(true);
@@ -68,12 +68,13 @@ public class TestSteamAPI {
             System.out.println("Starting the server");
 
             final long deadline = System.currentTimeMillis() + CONNECT_TIMEOUT_MS;
-            while (!handler.connected && System.currentTimeMillis() < deadline) {
+            while (!api.connected && System.currentTimeMillis() < deadline) {
                 api.SteamGameServer_RunCallbacks();
                 Thread.sleep(POLL_INTERVAL_MS);
             }
-            if (!handler.connected) {
+            if (!api.connected) {
                 System.out.println("Timed out waiting for the Steam connection callback");
+                failed = true;
             }
 
             final long runUntil = System.currentTimeMillis() + EXTRA_RUN_MS;
@@ -89,6 +90,12 @@ public class TestSteamAPI {
             }
             api.DeleteCallback();
         }
+        failed |= api.unexpectedAuthResponse;
         System.out.println("Shut down");
+        if (failed) {
+            System.out.println("Test FAILED");
+            System.exit(1);
+        }
+        System.out.println("Test passed");
     }
 }
