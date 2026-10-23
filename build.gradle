@@ -7,8 +7,12 @@ plugins {
     id 'application'
 }
 
-group = 'org.example'
-version = '1.0-SNAPSHOT'
+def steamworksSdkCommit = 'df2baabf574a738ef1ea90a7e89339107fc0a279'
+def steamworksSdkUrl = 'https://github.com/rlabrecque/SteamworksSDK.git' // v1.65 (a)
+def steamworksSdkDir = layout.buildDirectory.dir('steamworks-sdk')
+
+group = 'net.bdew.wurmsteam'
+version = '1.0'
 
 repositories {
     mavenCentral()
@@ -37,15 +41,41 @@ tasks.named('run').configure {
     dependsOn(tasks.named('assembleDebug'))
 }
 
+tasks.register('cloneSteamworksSdk') {
+    group = 'Build'
+    description = 'Clones the pinned Steamworks SDK revision into the build directory.'
+    inputs.property('commit', steamworksSdkCommit)
+    outputs.dir(steamworksSdkDir)
+
+    doLast {
+        def sdkDirectory = steamworksSdkDir.get().asFile
+        if (!new File(sdkDirectory, '.git').exists()) {
+            exec {
+                commandLine 'git', 'clone', '--no-checkout', steamworksSdkUrl, sdkDirectory
+            }
+        } else {
+            exec {
+                commandLine 'git', '-C', sdkDirectory, 'fetch', 'origin', steamworksSdkCommit
+            }
+        }
+        exec {
+            commandLine 'git', '-C', sdkDirectory, 'checkout', '--detach', steamworksSdkCommit
+        }
+    }
+}
+
 tasks.withType(CppCompile).configureEach { cppCompile ->
     def javaHome = Jvm.current().javaHome
     def os = DefaultNativePlatform.currentOperatingSystem
     def platformInclude = os.isWindows() ? "win32" : os.isMacOsX() ? "darwin" : "linux"
     compilerArgs.addAll([
             "-I${javaHome}/include",
-            "-I${javaHome}/include/${platformInclude}"
+            "-I${javaHome}/include/${platformInclude}",
+            "-I${steamworksSdkDir.get().asFile}/public",
+            "-I${steamworksSdkDir.get().asFile}/public/steam"
     ])
     cppCompile.dependsOn(tasks.compileJava)
+    cppCompile.dependsOn(tasks.named('cloneSteamworksSdk'))
 }
 
 tasks.named("compileJava").configure {
