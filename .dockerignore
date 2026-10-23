@@ -1,0 +1,16 @@
+.direnv
+.git
+.github
+.gradle
+build
+out
+.idea
+.vscode
+*.iml
+*.log
+hs_err_pid*
+core
+core.*
+Dockerfile
+*.nix
+flake.lock
