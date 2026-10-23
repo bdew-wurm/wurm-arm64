@@ -21,11 +21,11 @@ java {
 
 library {
     linkage = [Linkage.SHARED]
-    baseName = 'greeter'
+    baseName = 'SteamServerJni'
 }
 
 application {
-    mainClass = 'net.bdew.test.Main'
+    mainClass = 'net.bdew.test.TestSteamAPI'
     applicationDefaultJvmArgs = ["-Djava.library.path=${layout.buildDirectory.dir('lib/main/debug').get().asFile}"]
 }
 
